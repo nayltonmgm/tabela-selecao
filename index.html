@@ -106,7 +106,7 @@ function montarTabela() {
     if ((i - 1) % 10 === 0) linha = tabela.insertRow();
 
     const td = linha.insertCell();
-    td.textContent = i;
+    td.textContent = `R$ ${i}`;
 
     if (selecionados.has(i)) td.classList.add("marcado");
 
