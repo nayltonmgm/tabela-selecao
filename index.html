@@ -49,8 +49,8 @@ td {
 <body>
 
 <div class="topo">
-  <div>Marcados: <span id="marcados">0</span></div>
-  <div>Faltam: <span id="faltam">0</span></div>
+  <div>Marcados: <span id="marcados">R$ 0,00</span></div>
+  <div>Faltam: <span id="faltam">R$ 0,00</span></div>
 </div>
 
 <table id="tabela"></table>
@@ -97,6 +97,14 @@ async function salvar() {
   await setDoc(ref, { itens: [...selecionados] });
 }
 
+/* 🇧🇷 FORMATAÇÃO BRASILEIRA */
+function formatarBR(valor) {
+  return valor.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  });
+}
+
 /* 🧱 MONTAR TABELA */
 function montarTabela() {
   tabela.innerHTML = "";
@@ -129,8 +137,10 @@ function montarTabela() {
 /* ➕ SOMAS */
 function atualizar() {
   const somaMarcados = [...selecionados].reduce((a, b) => a + b, 0);
-  marcadosSpan.textContent = somaMarcados;
-  faltamSpan.textContent = SOMA_TOTAL - somaMarcados;
+  const somaFaltam = SOMA_TOTAL - somaMarcados;
+
+  marcadosSpan.textContent = formatarBR(somaMarcados);
+  faltamSpan.textContent = formatarBR(somaFaltam);
 }
 
 carregar();
