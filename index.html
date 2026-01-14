@@ -3,148 +3,137 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tabela com Salvamento Firebase</title>
+<title>Tabela Seleção</title>
 
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding-top: 70px;
-  }
+body {
+  margin: 0;
+  padding-top: 70px;
+  font-family: Arial, sans-serif;
+}
 
-  .topo {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    justify-content: space-around;
-    background: #222;
-    color: white;
-    padding: 10px;
-    z-index: 10;
-  }
+.topo {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #222;
+  color: #fff;
+  display: flex;
+  justify-content: space-around;
+  padding: 12px;
+  font-size: 18px;
+  z-index: 1000;
+}
 
-  .box {
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-weight: bold;
-  }
+.marcado {
+  background: #4caf50;
+  color: #fff;
+}
 
-  .marcados { background: #4caf50; }
-  .faltam { background: #f44336; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
 
-  table {
-    border-collapse: collapse;
-    width: 100%;
-  }
-
-  td {
-    border: 1px solid #ccc;
-    padding: 10px;
-    text-align: center;
-    cursor: pointer;
-    user-select: none;
-  }
-
-  td.m {
-    background: #4caf50;
-    color: white;
-  }
+td {
+  border: 1px solid #ccc;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
 </style>
 </head>
 
 <body>
 
 <div class="topo">
-  <div class="box marcados">Marcados: R$ <span id="m">0</span></div>
-  <div class="box faltam">Faltam: R$ <span id="f">0</span></div>
+  <div>Marcados: <span id="marcados">0</span></div>
+  <div>Faltam: <span id="faltam">0</span></div>
 </div>
 
-<table id="t"></table>
+<table id="tabela"></table>
 
-<!-- FIREBASE -->
 <script type="module">
-  // 🔥 IMPORTS FIREBASE (CDN OFICIAL)
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+/* 🔥 FIREBASE */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // 🔑 CONFIGURAÇÃO (SUA)
-  const firebaseConfig = {
-    apiKey: "SUA_API_KEY",
-    authDomain: "SEU_PROJETO.firebaseapp.com",
-    projectId: "SEU_PROJETO",
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyAzIGJub68rmKIt1Qzsc9Aygbd1IeHF4kY",
+  authDomain: "tabela-selecao.firebaseapp.com",
+  projectId: "tabela-selecao",
+  storageBucket: "tabela-selecao.firebasestorage.app",
+  messagingSenderId: "182647940029",
+  appId: "1:182647940029:web:393aec06b26187c01828d4"
+};
 
-  // 🔥 INICIALIZA
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const ref = doc(db, "estado", "selecionados");
 
-  const tabela = document.getElementById("t");
-  const marcadosSpan = document.getElementById("m");
-  const faltamSpan = document.getElementById("f");
+/* 📊 TABELA */
+const TOTAL = 316;
+const SOMA_TOTAL = TOTAL * (TOTAL + 1) / 2;
 
-  const TOTAL = 316;
-  const SOMA_TOTAL = TOTAL * (TOTAL + 1) / 2;
+const tabela = document.getElementById("tabela");
+const marcadosSpan = document.getElementById("marcados");
+const faltamSpan = document.getElementById("faltam");
 
-  let marcados = new Set();
+let selecionados = new Set();
 
-  // 📥 CARREGAR DO FIREBASE
-  async function carregar() {
-    const ref = doc(db, "tabela", "estado");
-    const snap = await getDoc(ref);
+/* 🔄 CARREGAR DADOS */
+async function carregar() {
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    selecionados = new Set(snap.data().itens || []);
+  }
+  montarTabela();
+}
 
-    if (snap.exists()) {
-      marcados = new Set(snap.data().marcados);
-    }
+/* 💾 SALVAR AUTOMATICAMENTE */
+async function salvar() {
+  await setDoc(ref, { itens: [...selecionados] });
+}
 
-    montarTabela();
+/* 🧱 MONTAR TABELA */
+function montarTabela() {
+  tabela.innerHTML = "";
+  let linha;
+
+  for (let i = 1; i <= TOTAL; i++) {
+    if ((i - 1) % 10 === 0) linha = tabela.insertRow();
+
+    const td = linha.insertCell();
+    td.textContent = i;
+
+    if (selecionados.has(i)) td.classList.add("marcado");
+
+    td.onclick = () => {
+      if (selecionados.has(i)) {
+        selecionados.delete(i);
+        td.classList.remove("marcado");
+      } else {
+        selecionados.add(i);
+        td.classList.add("marcado");
+      }
+      atualizar();
+      salvar();
+    };
   }
 
-  // 💾 SALVAR NO FIREBASE
-  async function salvar() {
-    const ref = doc(db, "tabela", "estado");
-    await setDoc(ref, {
-      marcados: Array.from(marcados)
-    });
-  }
+  atualizar();
+}
 
-  function montarTabela() {
-    tabela.innerHTML = "";
-    let linha;
+/* ➕ SOMAS */
+function atualizar() {
+  const somaMarcados = [...selecionados].reduce((a, b) => a + b, 0);
+  marcadosSpan.textContent = somaMarcados;
+  faltamSpan.textContent = SOMA_TOTAL - somaMarcados;
+}
 
-    for (let i = 1; i <= TOTAL; i++) {
-      if ((i - 1) % 10 === 0) linha = tabela.insertRow();
-
-      const td = linha.insertCell();
-      td.textContent = i;
-
-      if (marcados.has(i)) td.classList.add("m");
-
-      td.onclick = async () => {
-        if (marcados.has(i)) {
-          marcados.delete(i);
-          td.classList.remove("m");
-        } else {
-          marcados.add(i);
-          td.classList.add("m");
-        }
-
-        atualizar();
-        salvar(); // salva automaticamente
-      };
-    }
-
-    atualizar();
-  }
-
-  function atualizar() {
-    let somaMarcados = [...marcados].reduce((a, b) => a + b, 0);
-    marcadosSpan.textContent = somaMarcados;
-    faltamSpan.textContent = SOMA_TOTAL - somaMarcados;
-  }
-
-  carregar();
+carregar();
 </script>
 
 </body>
