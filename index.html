@@ -4,6 +4,8 @@ import {
   getFirestore, doc, setDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+document.addEventListener("DOMContentLoaded", async () => {
+
 const firebaseConfig = {
   apiKey: "AIzaSyAzIGJub68rmKIt1Qzsc9Aygbd1eHF4kY",
   authDomain: "tabela-selecao.firebaseapp.com",
@@ -61,4 +63,6 @@ for (let i = 1; i <= total; i += 10) {
 
 m.textContent = soma;
 f.textContent = somaTotal - soma;
+
+});
 </script>
