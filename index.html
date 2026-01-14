@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Projeto 50K - Backup Nuvem</title>
+<title>Projeto 50K - Realtime Backup</title>
 
 <style>
 body {
@@ -152,7 +152,6 @@ td.marcado {
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 </head>
-
 <body>
 
 <div class="topo">
@@ -202,6 +201,10 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
+// Nó central para estado em tempo real
+const estadoRef = db.ref('estadoAtual');
+// Nó separado para histórico de backups
 const backupsRef = db.ref('backups');
 
 // ================= VARIÁVEIS =================
@@ -211,34 +214,89 @@ let selecionados = new Set();
 const tabela = document.getElementById("tabela");
 const metaInput = document.getElementById("metaInput");
 metaInput.value = META;
-
-// ================= FUNÇÃO FORMATAÇÃO =================
 const br = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 
-// ================= BACKUP =================
-function salvarBackup() {
-  const backupData = {
+// ================= FUNÇÕES =================
+
+// Salva estado atual na nuvem (realtime)
+function salvarEstado() {
+  const estado = {
+    meta: META,
+    itens: [...selecionados],
+    ultimaAtualizacao: new Date().toISOString()
+  };
+  estadoRef.set(estado); // sobrescreve estado atual
+}
+
+// Salva backup histórico (versão com data)
+function salvarBackupHistorico() {
+  const backup = {
     data: new Date().toLocaleString(),
     meta: META,
     itens: [...selecionados]
   };
-  backupsRef.push(backupData);
+  backupsRef.push(backup);
 }
 
-// Carregar backups em tempo real
-function initBackupsRealtime() {
-  backupsRef.on('value', (snapshot) => {
-    const backupsObj = snapshot.val() || {};
-    const backups = Object.values(backupsObj).sort((a,b)=>new Date(b.data)-new Date(a.data)).slice(0,15);
-    renderBackups(backups);
-    if(!selecionados.size && backups.length) restaurar(backups[0]); // auto restaurar último backup
-  });
+// Monta tabela
+function montarTabela() {
+  tabela.innerHTML="";
+  let linha;
+  for(let i=1;i<=META;i++){
+    if((i-1)%10===0) linha=tabela.insertRow();
+    const td=linha.insertCell();
+    td.textContent=`R$ ${i}`;
+    if(selecionados.has(i)) td.classList.add("marcado");
+    td.onclick=()=>{
+      selecionados.has(i)?selecionados.delete(i):selecionados.add(i);
+      td.classList.toggle("marcado");
+      salvarEstado(); // atualiza em tempo real
+      salvarBackupHistorico(); // histórico opcional
+      atualizar();
+    };
+  }
+  atualizar();
 }
 
-function renderBackups(backups) {
+// Atualiza valores da tela
+function atualizar(){
+  const soma=[...selecionados].reduce((a,b)=>a+b,0);
+  document.getElementById("saldo").textContent=br(soma);
+  document.getElementById("faltam").textContent=br(META*(META+1)/2 - soma);
+  document.getElementById("qtdMarcados").textContent=selecionados.size;
+  document.getElementById("qtdRestam").textContent=META-selecionados.size;
+  const pct=(selecionados.size/META)*100;
+  document.getElementById("barra").style.width=pct+"%";
+  document.getElementById("percentual").textContent=pct.toFixed(1)+"%";
+}
+
+// Meta editável com confirmação
+metaInput.onfocus = ()=>metaAnterior=META;
+metaInput.onchange = ()=>{
+  const nova = Number(metaInput.value);
+  const removidos = [...selecionados].filter(v=>v>nova).length;
+  if(!confirm(`Alterar meta ${metaAnterior} → ${nova}?\nRemover ${removidos} depósitos?`)){
+    metaInput.value = metaAnterior;
+    return;
+  }
+  META = nova;
+  selecionados = new Set([...selecionados].filter(v=>v<=META));
+  salvarEstado();
+  salvarBackupHistorico();
+  montarTabela();
+};
+
+// Toggle menu backup
+function toggleBackup(){
+  const m=document.getElementById("backupMenu");
+  m.style.display=m.style.display==="block"?"none":"block";
+}
+
+// Renderiza backups históricos
+function renderBackupsHistorico(backups) {
   const list = document.getElementById("backupList");
   list.innerHTML = "";
-  backups.forEach(b=>{
+  backups.slice(-15).reverse().forEach(b=>{
     const soma = b.itens.reduce((a,v)=>a+v,0);
     const div = document.createElement("div");
     div.className="backup-item";
@@ -252,69 +310,41 @@ function renderBackups(backups) {
   });
 }
 
-// ================= RESTAURAR =================
-function restaurar(b) {
+// Restaurar estado
+function restaurar(b){
   META = b.meta;
   selecionados = new Set(b.itens);
   metaInput.value = META;
   montarTabela();
-  atualizar();
+  salvarEstado();
 }
 
-// ================= META =================
-metaInput.onfocus = ()=>metaAnterior=META;
-metaInput.onchange = ()=>{
-  const nova = Number(metaInput.value);
-  const removidos = [...selecionados].filter(v=>v>nova).length;
-  if(!confirm(`Alterar meta ${metaAnterior} → ${nova}?\nRemover ${removidos} depósitos?`)){
-    metaInput.value = metaAnterior;
-    return;
+// ================= INICIALIZAÇÃO =================
+
+// Escuta estado em tempo real
+estadoRef.on('value', snapshot => {
+  const estado = snapshot.val();
+  if(!estado) return;
+
+  META = estado.meta;
+  metaInput.value = META;
+
+  const novosSelecionados = new Set(estado.itens);
+  if(JSON.stringify([...novosSelecionados]) !== JSON.stringify([...selecionados])){
+    selecionados = novosSelecionados;
+    montarTabela();
   }
-  META = nova;
-  selecionados = new Set([...selecionados].filter(v=>v<=META));
-  salvarBackup();
-  montarTabela();
-};
+});
 
-// ================= TABELA =================
-function montarTabela() {
-  tabela.innerHTML="";
-  let linha;
-  for(let i=1;i<=META;i++){
-    if((i-1)%10===0) linha=tabela.insertRow();
-    const td=linha.insertCell();
-    td.textContent=`R$ ${i}`;
-    if(selecionados.has(i)) td.classList.add("marcado");
-    td.onclick=()=>{
-      selecionados.has(i)?selecionados.delete(i):selecionados.add(i);
-      td.classList.toggle("marcado");
-      salvarBackup();
-      atualizar();
-    };
-  }
-  atualizar();
-}
+// Escuta histórico de backups
+backupsRef.on('value', snapshot => {
+  const backupsObj = snapshot.val() || {};
+  const backups = Object.values(backupsObj).sort((a,b)=>new Date(b.data)-new Date(a.data));
+  renderBackupsHistorico(backups);
+});
 
-function atualizar(){
-  const soma=[...selecionados].reduce((a,b)=>a+b,0);
-  document.getElementById("saldo").textContent=br(soma);
-  document.getElementById("faltam").textContent=br(META*(META+1)/2 - soma);
-  document.getElementById("qtdMarcados").textContent=selecionados.size;
-  document.getElementById("qtdRestam").textContent=META-selecionados.size;
-  const pct=(selecionados.size/META)*100;
-  document.getElementById("barra").style.width=pct+"%";
-  document.getElementById("percentual").textContent=pct.toFixed(1)+"%";
-}
-
-// ================= MENU BACKUP =================
-function toggleBackup(){
-  const m=document.getElementById("backupMenu");
-  m.style.display=m.style.display==="block"?"none":"block";
-}
-
-// ================= INIT =================
+// Inicializa tabela
 montarTabela();
-initBackupsRealtime(); // backup em nuvem em tempo real
 </script>
 
 </body>
