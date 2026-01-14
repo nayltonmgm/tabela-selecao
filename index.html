@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Projeto 50K</title>
+<title>Projeto 50K - Backup Nuvem</title>
 
 <style>
 body {
@@ -146,6 +146,11 @@ td.marcado {
   margin-top: 4px;
 }
 </style>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 </head>
 
 <body>
@@ -185,41 +190,54 @@ td.marcado {
 </div>
 
 <script>
+// ================= CONFIG FIREBASE =================
+const firebaseConfig = {
+  apiKey: "SUA_API_KEY",
+  authDomain: "SEU_PROJETO.firebaseapp.com",
+  databaseURL: "https://SEU_PROJETO.firebaseio.com",
+  projectId: "SEU_PROJETO",
+  storageBucket: "SEU_PROJETO.appspot.com",
+  messagingSenderId: "SEU_SENDER_ID",
+  appId: "SEU_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const backupsRef = db.ref('backups');
+
+// ================= VARIÁVEIS =================
 let META = 316;
 let metaAnterior = META;
 let selecionados = new Set();
 const tabela = document.getElementById("tabela");
-
 const metaInput = document.getElementById("metaInput");
 metaInput.value = META;
 
-/* FORMATA */
+// ================= FUNÇÃO FORMATAÇÃO =================
 const br = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 
-/* BACKUP */
+// ================= BACKUP =================
 function salvarBackup() {
-  let backups = JSON.parse(localStorage.getItem("backups")||"[]");
-  backups.unshift({
+  const backupData = {
     data: new Date().toLocaleString(),
     meta: META,
     itens: [...selecionados]
+  };
+  backupsRef.push(backupData);
+}
+
+// Carregar backups em tempo real
+function initBackupsRealtime() {
+  backupsRef.on('value', (snapshot) => {
+    const backupsObj = snapshot.val() || {};
+    const backups = Object.values(backupsObj).sort((a,b)=>new Date(b.data)-new Date(a.data)).slice(0,15);
+    renderBackups(backups);
+    if(!selecionados.size && backups.length) restaurar(backups[0]); // auto restaurar último backup
   });
-  backups = backups.slice(0,15);
-  localStorage.setItem("backups", JSON.stringify(backups));
 }
 
-function carregarUltimoBackup() {
-  const backups = JSON.parse(localStorage.getItem("backups")||"[]");
-  if (!backups.length) return;
-  META = backups[0].meta;
-  selecionados = new Set(backups[0].itens);
-  metaInput.value = META;
-}
-
-function renderBackups() {
+function renderBackups(backups) {
   const list = document.getElementById("backupList");
   list.innerHTML = "";
-  const backups = JSON.parse(localStorage.getItem("backups")||"[]");
   backups.forEach(b=>{
     const soma = b.itens.reduce((a,v)=>a+v,0);
     const div = document.createElement("div");
@@ -234,14 +252,16 @@ function renderBackups() {
   });
 }
 
+// ================= RESTAURAR =================
 function restaurar(b) {
   META = b.meta;
   selecionados = new Set(b.itens);
   metaInput.value = META;
   montarTabela();
+  atualizar();
 }
 
-/* META CONFIRMAÇÃO */
+// ================= META =================
 metaInput.onfocus = ()=>metaAnterior=META;
 metaInput.onchange = ()=>{
   const nova = Number(metaInput.value);
@@ -256,7 +276,7 @@ metaInput.onchange = ()=>{
   montarTabela();
 };
 
-/* TABELA */
+// ================= TABELA =================
 function montarTabela() {
   tabela.innerHTML="";
   let linha;
@@ -286,15 +306,15 @@ function atualizar(){
   document.getElementById("percentual").textContent=pct.toFixed(1)+"%";
 }
 
+// ================= MENU BACKUP =================
 function toggleBackup(){
   const m=document.getElementById("backupMenu");
   m.style.display=m.style.display==="block"?"none":"block";
-  renderBackups();
 }
 
-/* INIT */
-carregarUltimoBackup();
+// ================= INIT =================
 montarTabela();
+initBackupsRealtime(); // backup em nuvem em tempo real
 </script>
 
 </body>
