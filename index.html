@@ -63,7 +63,7 @@ td {
 <div class="topo">
   <div class="titulo">Projeto 50K</div>
   <div class="topo-conteudo">
-    <div>Marcados: <span id="marcados" class="marcado">R$ 0,00</span></div>
+    <div>Saldo: <span id="marcados" class="marcado">R$ 0,00</span></div>
     <div>Faltam: <span id="faltam">R$ 0,00</span></div>
   </div>
 </div>
@@ -151,10 +151,10 @@ function montarTabela() {
 
 /* ➕ SOMAS */
 function atualizar() {
-  const somaMarcados = [...selecionados].reduce((a, b) => a + b, 0);
-  const somaFaltam = SOMA_TOTAL - somaMarcados;
+  const somaSaldo = [...selecionados].reduce((a, b) => a + b, 0);
+  const somaFaltam = SOMA_TOTAL - somaSaldo;
 
-  marcadosSpan.textContent = formatarBR(somaMarcados);
+  marcadosSpan.textContent = formatarBR(somaSaldo);
   faltamSpan.textContent = formatarBR(somaFaltam);
 }
 
