@@ -1,68 +1,27 @@
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {
-  getFirestore, doc, setDoc, getDoc
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Tabela</title>
+<style>
+  td { border: 1px solid #ccc; padding: 6px; cursor: pointer; }
+  .m { background: #4caf50; color: white; }
+</style>
+</head>
 
-document.addEventListener("DOMContentLoaded", async () => {
+<body>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAzIGJub68rmKIt1Qzsc9Aygbd1eHF4kY",
-  authDomain: "tabela-selecao.firebaseapp.com",
-  projectId: "tabela-selecao",
-  storageBucket: "tabela-selecao.appspot.com",
-  messagingSenderId: "182647940029",
-  appId: "1:182647940029:web:393aec06b26187c01828d4"
-};
+<div>
+  Marcados: <span id="m">0</span> |
+  Faltam: <span id="f">0</span>
+</div>
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+<table id="t"></table>
 
-const total = 316;
-let soma = 0;
-let marcados = [];
-
+<script>
 const tabela = document.getElementById("t");
-const somaTotal = total * (total + 1) / 2;
-
-const docRef = doc(db, "dados", "principal");
-
-// 🔹 Carregar da nuvem
-const snap = await getDoc(docRef);
-if (snap.exists()) marcados = snap.data().marcados || [];
-
-// 🔹 Montar tabela
-for (let i = 1; i <= total; i += 10) {
-  let tr = tabela.insertRow();
-  for (let j = i; j < i + 10 && j <= total; j++) {
-    let td = tr.insertCell();
-    td.textContent = "R$ " + j;
-
-    if (marcados.includes(j)) {
-      td.classList.add("m");
-      soma += j;
-    }
-
-    td.onclick = async () => {
-      td.classList.toggle("m");
-
-      if (td.classList.contains("m")) {
-        marcados.push(j);
-        soma += j;
-      } else {
-        marcados = marcados.filter(v => v !== j);
-        soma -= j;
-      }
-
-      await setDoc(docRef, { marcados });
-      m.textContent = soma;
-      f.textContent = somaTotal - soma;
-    };
-  }
-}
-
-m.textContent = soma;
-f.textContent = somaTotal - soma;
-
-});
+console.log("Tabela:", tabela); // NÃO pode ser null
 </script>
+
+</body>
+</html>
