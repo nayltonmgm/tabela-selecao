@@ -8,12 +8,11 @@
 <style>
 body {
   margin: 0;
-  padding-top: 220px;
+  padding-top: 230px;
   font-family: Arial, sans-serif;
-  background: #f5f5f5;
 }
 
-/* TOPO FIXO */
+/* TOPO */
 .topo {
   position: fixed;
   top: 0;
@@ -25,12 +24,24 @@ body {
   z-index: 1000;
 }
 
-/* TÍTULO */
+.topo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .titulo {
-  text-align: center;
   font-size: 20px;
   font-weight: bold;
-  margin-bottom: 8px;
+}
+
+.btn-backups {
+  background: #4caf50;
+  border: none;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 /* INFO */
@@ -39,6 +50,7 @@ body {
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
   font-size: 14px;
+  margin-top: 8px;
 }
 
 .box {
@@ -56,50 +68,25 @@ body {
 }
 
 /* PROGRESSO */
-.progresso-container {
-  margin-top: 10px;
-}
-
 .barra {
   width: 100%;
   height: 16px;
   background: #444;
   border-radius: 8px;
   overflow: hidden;
+  margin-top: 10px;
 }
 
 .barra-preenchida {
   height: 100%;
-  width: 0%;
   background: #4caf50;
-  transition: width 0.3s;
+  width: 0%;
 }
 
 .percentual {
   text-align: center;
   font-size: 13px;
   margin-top: 4px;
-}
-
-/* BACKUP */
-.backup-info {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  text-align: right;
-  font-size: 12px;
-  color: #ccc;
-}
-
-.backup-info button {
-  margin-top: 4px;
-  padding: 6px 10px;
-  border: none;
-  border-radius: 6px;
-  background: #4caf50;
-  color: #fff;
-  cursor: pointer;
-  font-size: 12px;
 }
 
 /* TABELA */
@@ -114,8 +101,6 @@ td {
   text-align: center;
   cursor: pointer;
   user-select: none;
-  font-size: 14px;
-  background: #fff;
 }
 
 td.marcado {
@@ -124,11 +109,30 @@ td.marcado {
   font-weight: bold;
 }
 
-/* DESKTOP */
-@media (min-width: 768px) {
-  body { padding-top: 180px; }
-  .topo-conteudo { grid-template-columns: repeat(4, 1fr); }
-  td { font-size: 16px; padding: 12px; }
+/* MODAL BACKUPS */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 3000;
+}
+
+.modal-box {
+  background: #fff;
+  max-width: 420px;
+  margin: 10% auto;
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.backup-item {
+  border-bottom: 1px solid #ddd;
+  padding: 8px 0;
+}
+
+.backup-item button {
+  margin-top: 6px;
 }
 </style>
 </head>
@@ -136,12 +140,9 @@ td.marcado {
 <body>
 
 <div class="topo">
-  <div class="titulo">Projeto 50K</div>
-
-  <div class="backup-info">
-    Último backup:<br>
-    <span id="backupData">—</span><br>
-    <button onclick="restaurarUltimoBackup()">Restaurar último backup</button>
+  <div class="topo-header">
+    <div class="titulo">Projeto 50K</div>
+    <button class="btn-backups" onclick="abrirBackups()">📦 Backups</button>
   </div>
 
   <div class="topo-conteudo">
@@ -151,100 +152,124 @@ td.marcado {
     <div class="box">Restam<br><strong id="qtdRestam">0</strong></div>
   </div>
 
-  <div class="progresso-container">
-    <div class="barra">
-      <div class="barra-preenchida" id="barra"></div>
-    </div>
-    <div class="percentual" id="percentual">0% concluído</div>
+  <div class="barra">
+    <div class="barra-preenchida" id="barra"></div>
   </div>
+  <div class="percentual" id="percentual">0% concluído</div>
 </div>
 
 <table id="tabela"></table>
 
+<!-- MODAL -->
+<div class="modal" id="modalBackups">
+  <div class="modal-box">
+    <h3>📦 Backups</h3>
+    <div id="listaBackups"></div>
+    <button onclick="fecharBackups()">Fechar</button>
+  </div>
+</div>
+
 <script type="module">
-/* 🔥 FIREBASE */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAzIGJub68rmKIt1Qzsc9Aygbd1IeHF4kY",
   authDomain: "tabela-selecao.firebaseapp.com",
-  projectId: "tabela-selecao",
-  storageBucket: "tabela-selecao.firebasestorage.app",
-  messagingSenderId: "182647940029",
-  appId: "1:182647940029:web:393aec06b26187c01828d4"
+  projectId: "tabela-selecao"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const ref = doc(db, "estado", "selecionados");
 
-/* 📊 CONFIG */
 const TOTAL = 316;
 const SOMA_TOTAL = TOTAL * (TOTAL + 1) / 2;
-const BACKUP_KEY = "projeto50k_backups";
-
-/* ELEMENTOS */
-const tabela = document.getElementById("tabela");
-const saldoSpan = document.getElementById("saldo");
-const faltamSpan = document.getElementById("faltam");
-const qtdMarcadosSpan = document.getElementById("qtdMarcados");
-const qtdRestamSpan = document.getElementById("qtdRestam");
-const barra = document.getElementById("barra");
-const percentualSpan = document.getElementById("percentual");
-const backupDataSpan = document.getElementById("backupData");
+const MAX_BACKUPS = 15;
 
 let selecionados = new Set();
 
-/* 🇧🇷 FORMATAR */
-function formatarBR(valor) {
-  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
+/* BACKUP */
+function salvarBackup() {
+  let backups = JSON.parse(localStorage.getItem("backups50k") || "[]");
 
-/* 💾 BACKUP AUTOMÁTICO */
-function salvarBackupLocal() {
-  const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || "[]");
   backups.push({
     data: new Date().toISOString(),
     itens: [...selecionados]
   });
-  localStorage.setItem(BACKUP_KEY, JSON.stringify(backups));
-  backupDataSpan.textContent = new Date().toLocaleString("pt-BR");
+
+  if (backups.length > MAX_BACKUPS) {
+    backups = backups.slice(-MAX_BACKUPS);
+  }
+
+  localStorage.setItem("backups50k", JSON.stringify(backups));
 }
 
-/* ♻ RESTAURAR */
-window.restaurarUltimoBackup = function () {
-  const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || "[]");
-  if (!backups.length) return alert("Nenhum backup encontrado.");
-  const ultimo = backups[backups.length - 1];
-  selecionados = new Set(ultimo.itens);
-  montarTabela();
-  salvarFirebase();
+/* MENU */
+window.abrirBackups = () => {
+  const lista = document.getElementById("listaBackups");
+  lista.innerHTML = "";
+
+  const backups = JSON.parse(localStorage.getItem("backups50k") || "[]").reverse();
+
+  backups.forEach((b, i) => {
+    const soma = b.itens.reduce((a, v) => a + v, 0);
+
+    const div = document.createElement("div");
+    div.className = "backup-item";
+    div.innerHTML = `
+      <strong>${new Date(b.data).toLocaleString("pt-BR")}</strong><br>
+      Depósitos: ${b.itens.length}<br>
+      Total: ${formatarBR(soma)}<br>
+      <button onclick="restaurarBackup(${backups.length - 1 - i})">Restaurar</button>
+    `;
+    lista.appendChild(div);
+  });
+
+  document.getElementById("modalBackups").style.display = "block";
 };
 
-/* 🔄 FIREBASE */
-async function salvarFirebase() {
-  await setDoc(ref, { itens: [...selecionados] });
-}
+window.fecharBackups = () => {
+  document.getElementById("modalBackups").style.display = "none";
+};
 
+window.restaurarBackup = (index) => {
+  const backups = JSON.parse(localStorage.getItem("backups50k"));
+  selecionados = new Set(backups[index].itens);
+  salvar();
+  montarTabela();
+  fecharBackups();
+};
+
+/* FIREBASE */
 async function carregar() {
-  const snap = await getDoc(ref);
-  if (snap.exists()) selecionados = new Set(snap.data().itens || []);
-  restaurarUltimoBackupAutomatico();
+  try {
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      selecionados = new Set(snap.data().itens || []);
+    }
+  } catch {
+    const backups = JSON.parse(localStorage.getItem("backups50k") || "[]");
+    if (backups.length) {
+      selecionados = new Set(backups.at(-1).itens);
+    }
+  }
   montarTabela();
 }
 
-/* 🔁 AUTO RESTORE */
-function restaurarUltimoBackupAutomatico() {
-  const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || "[]");
-  if (!backups.length) return;
-  const ultimo = backups[backups.length - 1];
-  selecionados = new Set(ultimo.itens);
-  backupDataSpan.textContent = new Date(ultimo.data).toLocaleString("pt-BR");
+async function salvar() {
+  await setDoc(ref, { itens: [...selecionados] });
+  salvarBackup();
 }
 
-/* 🧱 TABELA */
+/* UTIL */
+function formatarBR(v) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+/* TABELA */
 function montarTabela() {
+  const tabela = document.getElementById("tabela");
   tabela.innerHTML = "";
   let linha;
 
@@ -259,25 +284,24 @@ function montarTabela() {
       selecionados.has(i) ? selecionados.delete(i) : selecionados.add(i);
       td.classList.toggle("marcado");
       atualizar();
-      salvarFirebase();
-      salvarBackupLocal();
+      salvar();
     };
   }
+
   atualizar();
 }
 
-/* 📈 ATUALIZAR */
 function atualizar() {
-  const soma = [...selecionados].reduce((a, b) => a + b, 0);
+  const soma = [...selecionados].reduce((a,b)=>a+b,0);
   const qtd = selecionados.size;
-  const perc = (qtd / TOTAL) * 100;
+  const pct = (qtd / TOTAL) * 100;
 
-  saldoSpan.textContent = formatarBR(soma);
-  faltamSpan.textContent = formatarBR(SOMA_TOTAL - soma);
-  qtdMarcadosSpan.textContent = qtd;
-  qtdRestamSpan.textContent = TOTAL - qtd;
-  barra.style.width = perc + "%";
-  percentualSpan.textContent = perc.toFixed(1) + "% concluído";
+  saldo.textContent = formatarBR(soma);
+  faltam.textContent = formatarBR(SOMA_TOTAL - soma);
+  qtdMarcados.textContent = qtd;
+  qtdRestam.textContent = TOTAL - qtd;
+  barra.style.width = pct + "%";
+  percentual.textContent = pct.toFixed(1) + "% concluído";
 }
 
 carregar();
