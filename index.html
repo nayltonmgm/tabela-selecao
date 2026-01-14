@@ -8,7 +8,7 @@
 <style>
 body {
   margin: 0;
-  padding-top: 210px;
+  padding-top: 250px;
   font-family: Arial, sans-serif;
 }
 
@@ -31,10 +31,10 @@ body {
   margin-bottom: 8px;
 }
 
-/* INFO EM COLUNAS */
+/* INFO */
 .topo-conteudo {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 6px;
   font-size: 14px;
 }
@@ -68,7 +68,6 @@ body {
 
 .barra-preenchida {
   height: 100%;
-  width: 0%;
   background: #4caf50;
   transition: width 0.3s;
 }
@@ -77,6 +76,24 @@ body {
   text-align: center;
   font-size: 13px;
   margin-top: 4px;
+}
+
+/* BACKUP */
+.backup-info {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 12px;
+  color: #ccc;
+}
+
+.backup-info button {
+  margin-top: 4px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #4caf50;
+  color: #fff;
+  cursor: pointer;
 }
 
 /* TABELA */
@@ -91,7 +108,6 @@ td {
   text-align: center;
   cursor: pointer;
   user-select: none;
-  font-size: 14px;
 }
 
 td.marcado {
@@ -102,19 +118,8 @@ td.marcado {
 
 /* DESKTOP */
 @media (min-width: 768px) {
-  body {
-    padding-top: 160px;
-  }
-
-  .topo-conteudo {
-    grid-template-columns: repeat(4, 1fr);
-    font-size: 16px;
-  }
-
-  td {
-    font-size: 16px;
-    padding: 12px;
-  }
+  body { padding-top: 180px; }
+  .topo-conteudo { grid-template-columns: repeat(4, 1fr); }
 }
 </style>
 </head>
@@ -137,6 +142,11 @@ td.marcado {
     </div>
     <div class="percentual" id="percentual">0% concluído</div>
   </div>
+
+  <div class="backup-info">
+    Último backup: <span id="backupData">—</span><br>
+    <button onclick="restaurarUltimoBackup()">Restaurar último backup</button>
+  </div>
 </div>
 
 <table id="tabela"></table>
@@ -145,6 +155,7 @@ td.marcado {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+/* FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyAzIGJub68rmKIt1Qzsc9Aygbd1IeHF4kY",
   authDomain: "tabela-selecao.firebaseapp.com",
@@ -158,79 +169,116 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const ref = doc(db, "estado", "selecionados");
 
+/* CONFIG */
 const TOTAL = 316;
 const SOMA_TOTAL = TOTAL * (TOTAL + 1) / 2;
-
-const tabela = document.getElementById("tabela");
-const saldoSpan = document.getElementById("saldo");
-const faltamSpan = document.getElementById("faltam");
-const qtdMarcadosSpan = document.getElementById("qtdMarcados");
-const qtdRestamSpan = document.getElementById("qtdRestam");
-const barra = document.getElementById("barra");
-const percentualSpan = document.getElementById("percentual");
+const BACKUP_KEY = "projeto50k_backups";
 
 let selecionados = new Set();
 
-async function carregar() {
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    selecionados = new Set(snap.data().itens || []);
-  }
+/* BACKUP VERSIONADO */
+function salvarBackupVersionado() {
+  const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || "[]");
+
+  backups.push({
+    data: new Date().toISOString(),
+    itens: [...selecionados]
+  });
+
+  if (backups.length > 20) backups.shift();
+
+  localStorage.setItem(BACKUP_KEY, JSON.stringify(backups));
+  atualizarInfoBackup();
+}
+
+function obterUltimoBackup() {
+  const backups = JSON.parse(localStorage.getItem(BACKUP_KEY) || "[]");
+  return backups.length ? backups[backups.length - 1] : null;
+}
+
+function restaurarUltimoBackup() {
+  const ultimo = obterUltimoBackup();
+  if (!ultimo) return alert("Nenhum backup disponível");
+
+  selecionados = new Set(ultimo.itens);
+  salvar();
   montarTabela();
 }
 
+window.restaurarUltimoBackup = restaurarUltimoBackup;
+
+function atualizarInfoBackup() {
+  const ultimo = obterUltimoBackup();
+  document.getElementById("backupData").textContent =
+    ultimo ? new Date(ultimo.data).toLocaleString("pt-BR") : "—";
+}
+
+/* LOAD */
+async function carregar() {
+  try {
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      selecionados = new Set(snap.data().itens || []);
+    } else {
+      const ultimo = obterUltimoBackup();
+      if (ultimo) selecionados = new Set(ultimo.itens);
+    }
+  } catch {
+    const ultimo = obterUltimoBackup();
+    if (ultimo) selecionados = new Set(ultimo.itens);
+  }
+
+  montarTabela();
+}
+
+/* SAVE */
 async function salvar() {
   await setDoc(ref, { itens: [...selecionados] });
+  salvarBackupVersionado();
 }
 
-function formatarBR(valor) {
-  return valor.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL"
-  });
+/* FORMAT */
+function formatarBR(v) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/* TABLE */
 function montarTabela() {
+  const tabela = document.getElementById("tabela");
   tabela.innerHTML = "";
   let linha;
 
   for (let i = 1; i <= TOTAL; i++) {
     if ((i - 1) % 10 === 0) linha = tabela.insertRow();
-
     const td = linha.insertCell();
     td.textContent = `R$ ${i}`;
-
     if (selecionados.has(i)) td.classList.add("marcado");
 
     td.onclick = () => {
-      selecionados.has(i)
-        ? selecionados.delete(i)
-        : selecionados.add(i);
-
+      selecionados.has(i) ? selecionados.delete(i) : selecionados.add(i);
       td.classList.toggle("marcado");
       atualizar();
       salvar();
     };
   }
-
   atualizar();
 }
 
+/* UPDATE */
 function atualizar() {
   const soma = [...selecionados].reduce((a, b) => a + b, 0);
-  const faltam = SOMA_TOTAL - soma;
+  const qtd = selecionados.size;
+  const perc = (qtd / TOTAL) * 100;
 
-  const qtdMarcados = selecionados.size;
-  const percentual = (qtdMarcados / TOTAL) * 100;
+  document.getElementById("saldo").textContent = formatarBR(soma);
+  document.getElementById("faltam").textContent = formatarBR(SOMA_TOTAL - soma);
+  document.getElementById("qtdMarcados").textContent = qtd;
+  document.getElementById("qtdRestam").textContent = TOTAL - qtd;
 
-  saldoSpan.textContent = formatarBR(soma);
-  faltamSpan.textContent = formatarBR(faltam);
+  document.getElementById("barra").style.width = perc + "%";
+  document.getElementById("percentual").textContent = perc.toFixed(1) + "% concluído";
 
-  qtdMarcadosSpan.textContent = qtdMarcados;
-  qtdRestamSpan.textContent = TOTAL - qtdMarcados;
-
-  barra.style.width = percentual + "%";
-  percentualSpan.textContent = percentual.toFixed(1) + "% concluído";
+  atualizarInfoBackup();
 }
 
 carregar();
