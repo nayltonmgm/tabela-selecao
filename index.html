@@ -8,47 +8,47 @@
 <style>
 body {
   margin: 0;
-  padding-top: 230px;
+  padding-top: 240px;
   font-family: Arial, sans-serif;
+  background: #f5f5f5;
 }
 
 /* TOPO */
 .topo {
   position: fixed;
-  inset: 0 0 auto 0;
+  top: 0;
+  left: 0;
+  right: 0;
   background: #222;
   color: #fff;
   padding: 10px;
   z-index: 1000;
 }
 
-.topo-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .titulo {
+  text-align: center;
   font-size: 20px;
   font-weight: bold;
 }
 
-.btn-backups {
-  background: #4caf50;
-  border: none;
-  color: #fff;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
+/* META */
+.meta-box {
+  text-align: center;
+  margin: 6px 0;
+}
+.meta-box input {
+  width: 80px;
+  padding: 4px;
+  text-align: center;
+  font-size: 14px;
 }
 
-/* INFO */
+/* GRID INFO */
 .topo-conteudo {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
   font-size: 14px;
-  margin-top: 8px;
 }
 
 .box {
@@ -58,29 +58,20 @@ body {
   text-align: center;
 }
 
-.marcado {
-  background: #4caf50;
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
 /* PROGRESSO */
 .barra {
   width: 100%;
-  height: 16px;
+  height: 14px;
   background: #444;
-  border-radius: 8px;
+  border-radius: 7px;
   overflow: hidden;
-  margin-top: 10px;
+  margin-top: 8px;
 }
-
 .barra-preenchida {
   height: 100%;
-  background: #4caf50;
   width: 0%;
+  background: #4caf50;
 }
-
 .percentual {
   text-align: center;
   font-size: 13px;
@@ -92,68 +83,67 @@ table {
   width: 100%;
   border-collapse: collapse;
 }
-
 td {
   border: 1px solid #ddd;
   padding: 10px 0;
   text-align: center;
   cursor: pointer;
-  user-select: none;
+  font-size: 14px;
 }
-
 td.marcado {
   background: #4caf50;
   color: #fff;
   font-weight: bold;
 }
 
-/* MODAL */
-.modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.6);
-  z-index: 3000;
-}
-
-.modal-box {
-  background: #fff;
-  max-width: 420px;
-  margin: 10% auto;
-  padding: 14px;
-  border-radius: 12px;
-  position: relative;
-  max-height: 70vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.btn-fechar {
+/* BACKUP MENU */
+.backup-btn {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  background: #eee;
+  top: 10px;
+  right: 10px;
+  background: #4caf50;
   border: none;
-  font-size: 16px;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
   cursor: pointer;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
 }
 
-.lista-backups {
-  margin-top: 30px;
+.backup-menu {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 100%;
+  background: #fff;
+  box-shadow: -2px 0 8px rgba(0,0,0,.3);
+  padding: 10px;
+  display: none;
+  z-index: 2000;
+}
+
+.backup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.backup-list {
+  max-height: calc(100% - 60px);
   overflow-y: auto;
+  margin-top: 10px;
 }
 
 .backup-item {
-  border-bottom: 1px solid #ddd;
-  padding: 8px 0;
+  border: 1px solid #ccc;
+  padding: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
 }
 
-.atual {
-  color: #4caf50;
-  font-weight: bold;
+.backup-item button {
+  width: 100%;
+  margin-top: 4px;
 }
 </style>
 </head>
@@ -161,129 +151,116 @@ td.marcado {
 <body>
 
 <div class="topo">
-  <div class="topo-header">
-    <div class="titulo">Projeto 50K</div>
-    <button class="btn-backups" onclick="abrirBackups()">📦 Backups</button>
+  <div class="titulo">Projeto 50K</div>
+
+  <button class="backup-btn" onclick="toggleBackup()">💾</button>
+
+  <div class="meta-box">
+    Meta:
+    <input type="number" id="metaInput">
   </div>
 
   <div class="topo-conteudo">
-    <div class="box">Saldo<br><span id="saldo" class="marcado">R$ 0,00</span></div>
-    <div class="box">Faltam<br><span id="faltam">R$ 0,00</span></div>
+    <div class="box">Saldo<br><strong id="saldo">R$ 0,00</strong></div>
+    <div class="box">Faltam<br><strong id="faltam">R$ 0,00</strong></div>
     <div class="box">Depósitos<br><strong id="qtdMarcados">0</strong></div>
     <div class="box">Restam<br><strong id="qtdRestam">0</strong></div>
   </div>
 
-  <div class="barra"><div class="barra-preenchida" id="barra"></div></div>
-  <div class="percentual" id="percentual">0% concluído</div>
+  <div class="barra">
+    <div class="barra-preenchida" id="barra"></div>
+  </div>
+  <div class="percentual" id="percentual">0%</div>
 </div>
 
 <table id="tabela"></table>
 
-<!-- MODAL BACKUPS -->
-<div class="modal" id="modalBackups">
-  <div class="modal-box">
-    <button class="btn-fechar" onclick="fecharBackups()">✖</button>
-    <h3 style="text-align:center">📦 Backups</h3>
-    <div class="lista-backups" id="listaBackups"></div>
+<!-- MENU BACKUP -->
+<div class="backup-menu" id="backupMenu">
+  <div class="backup-header">
+    <strong>Backups</strong>
+    <button onclick="toggleBackup()">✖</button>
   </div>
+  <div class="backup-list" id="backupList"></div>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAzIGJub68rmKIt1Qzsc9Aygbd1IeHF4kY",
-  authDomain: "tabela-selecao.firebaseapp.com",
-  projectId: "tabela-selecao"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const ref = doc(db, "estado", "selecionados");
-
-const TOTAL = 316;
-const SOMA_TOTAL = TOTAL * (TOTAL + 1) / 2;
-const MAX_BACKUPS = 15;
-
+<script>
+let META = 316;
+let metaAnterior = META;
 let selecionados = new Set();
+const tabela = document.getElementById("tabela");
 
-/* UTIL */
-function formatarBR(v){
-  return v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const metaInput = document.getElementById("metaInput");
+metaInput.value = META;
+
+/* FORMATA */
+const br = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+
+/* BACKUP */
+function salvarBackup() {
+  let backups = JSON.parse(localStorage.getItem("backups")||"[]");
+  backups.unshift({
+    data: new Date().toLocaleString(),
+    meta: META,
+    itens: [...selecionados]
+  });
+  backups = backups.slice(0,15);
+  localStorage.setItem("backups", JSON.stringify(backups));
 }
 
-function tempoRelativo(data){
-  const diff = (Date.now() - new Date(data)) / 1000;
-  if (diff < 60) return "agora mesmo";
-  if (diff < 3600) return `há ${Math.floor(diff/60)} min`;
-  if (diff < 86400) return `há ${Math.floor(diff/3600)} h`;
-  return `há ${Math.floor(diff/86400)} dias`;
+function carregarUltimoBackup() {
+  const backups = JSON.parse(localStorage.getItem("backups")||"[]");
+  if (!backups.length) return;
+  META = backups[0].meta;
+  selecionados = new Set(backups[0].itens);
+  metaInput.value = META;
 }
 
-/* BACKUPS */
-function salvarBackup(){
-  let backups = JSON.parse(localStorage.getItem("backups50k")||"[]");
-  backups.push({ data:new Date().toISOString(), itens:[...selecionados] });
-  if (backups.length > MAX_BACKUPS) backups = backups.slice(-MAX_BACKUPS);
-  localStorage.setItem("backups50k", JSON.stringify(backups));
-}
-
-window.abrirBackups = ()=>{
-  const lista = document.getElementById("listaBackups");
-  lista.innerHTML="";
-  const backups = JSON.parse(localStorage.getItem("backups50k")||"[]").reverse();
-
-  backups.forEach((b,i)=>{
+function renderBackups() {
+  const list = document.getElementById("backupList");
+  list.innerHTML = "";
+  const backups = JSON.parse(localStorage.getItem("backups")||"[]");
+  backups.forEach(b=>{
     const soma = b.itens.reduce((a,v)=>a+v,0);
-    const atual = JSON.stringify(b.itens) === JSON.stringify([...selecionados]);
-
     const div = document.createElement("div");
     div.className="backup-item";
     div.innerHTML = `
-      <strong>${tempoRelativo(b.data)}</strong> ${atual ? '<span class="atual">(atual)</span>' : ''}<br>
-      Total: ${formatarBR(soma)}<br>
-      <button onclick="restaurarBackup(${backups.length-1-i})">Restaurar</button>
+      <div>${b.data}</div>
+      <div>Meta: ${b.meta}</div>
+      <div>Total: ${br(soma)}</div>
+      <button onclick='restaurar(${JSON.stringify(b)})'>Restaurar</button>
     `;
-    lista.appendChild(div);
+    list.appendChild(div);
   });
+}
 
-  modalBackups.style.display="block";
-};
-
-window.fecharBackups = ()=> modalBackups.style.display="none";
-
-window.restaurarBackup = (i)=>{
-  if(!confirm("Deseja restaurar este backup?")) return;
-  const backups = JSON.parse(localStorage.getItem("backups50k"));
-  selecionados = new Set(backups[i].itens);
-  salvar();
+function restaurar(b) {
+  META = b.meta;
+  selecionados = new Set(b.itens);
+  metaInput.value = META;
   montarTabela();
-  fecharBackups();
-};
+}
 
-/* FIREBASE */
-async function carregar(){
-  try{
-    const snap = await getDoc(ref);
-    if(snap.exists()) selecionados = new Set(snap.data().itens||[]);
-  }catch{
-    const b = JSON.parse(localStorage.getItem("backups50k")||"[]");
-    if(b.length) selecionados = new Set(b.at(-1).itens);
+/* META CONFIRMAÇÃO */
+metaInput.onfocus = ()=>metaAnterior=META;
+metaInput.onchange = ()=>{
+  const nova = Number(metaInput.value);
+  const removidos = [...selecionados].filter(v=>v>nova).length;
+  if(!confirm(`Alterar meta ${metaAnterior} → ${nova}?\nRemover ${removidos} depósitos?`)){
+    metaInput.value = metaAnterior;
+    return;
   }
-  montarTabela();
-}
-
-async function salvar(){
-  await setDoc(ref,{itens:[...selecionados]});
+  META = nova;
+  selecionados = new Set([...selecionados].filter(v=>v<=META));
   salvarBackup();
-}
+  montarTabela();
+};
 
 /* TABELA */
-function montarTabela(){
+function montarTabela() {
   tabela.innerHTML="";
   let linha;
-  for(let i=1;i<=TOTAL;i++){
+  for(let i=1;i<=META;i++){
     if((i-1)%10===0) linha=tabela.insertRow();
     const td=linha.insertCell();
     td.textContent=`R$ ${i}`;
@@ -291,7 +268,8 @@ function montarTabela(){
     td.onclick=()=>{
       selecionados.has(i)?selecionados.delete(i):selecionados.add(i);
       td.classList.toggle("marcado");
-      atualizar(); salvar();
+      salvarBackup();
+      atualizar();
     };
   }
   atualizar();
@@ -299,18 +277,24 @@ function montarTabela(){
 
 function atualizar(){
   const soma=[...selecionados].reduce((a,b)=>a+b,0);
-  const qtd=selecionados.size;
-  const pct=(qtd/TOTAL)*100;
-
-  saldo.textContent=formatarBR(soma);
-  faltam.textContent=formatarBR(SOMA_TOTAL-soma);
-  qtdMarcados.textContent=qtd;
-  qtdRestam.textContent=TOTAL-qtd;
-  barra.style.width=pct+"%";
-  percentual.textContent=pct.toFixed(1)+"% concluído";
+  document.getElementById("saldo").textContent=br(soma);
+  document.getElementById("faltam").textContent=br(META*(META+1)/2 - soma);
+  document.getElementById("qtdMarcados").textContent=selecionados.size;
+  document.getElementById("qtdRestam").textContent=META-selecionados.size;
+  const pct=(selecionados.size/META)*100;
+  document.getElementById("barra").style.width=pct+"%";
+  document.getElementById("percentual").textContent=pct.toFixed(1)+"%";
 }
 
-carregar();
+function toggleBackup(){
+  const m=document.getElementById("backupMenu");
+  m.style.display=m.style.display==="block"?"none":"block";
+  renderBackups();
+}
+
+/* INIT */
+carregarUltimoBackup();
+montarTabela();
 </script>
 
 </body>
