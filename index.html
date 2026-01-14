@@ -3,148 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Projeto 50K</title>
+<title>Projeto 50K - Firebase</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
-body {
-  margin: 0;
-  padding-top: 240px;
-  font-family: Arial, sans-serif;
-  background: #f5f5f5;
-}
-
-/* TOPO */
-.topo {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: #222;
-  color: #fff;
-  padding: 10px;
-  z-index: 1000;
-}
-
-.titulo {
-  text-align: center;
-  font-size: 20px;
-  font-weight: bold;
-}
-
-/* META */
-.meta-box {
-  text-align: center;
-  margin: 6px 0;
-}
-.meta-box input {
-  width: 80px;
-  padding: 4px;
-  text-align: center;
-  font-size: 14px;
-}
-
-/* GRID INFO */
-.topo-conteudo {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  font-size: 14px;
-}
-
-.box {
-  background: #333;
-  padding: 6px;
-  border-radius: 6px;
-  text-align: center;
-}
-
-/* PROGRESSO */
-.barra {
-  width: 100%;
-  height: 14px;
-  background: #444;
-  border-radius: 7px;
-  overflow: hidden;
-  margin-top: 8px;
-}
-.barra-preenchida {
-  height: 100%;
-  width: 0%;
-  background: #4caf50;
-}
-.percentual {
-  text-align: center;
-  font-size: 13px;
-  margin-top: 4px;
-}
-
-/* TABELA */
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-td {
-  border: 1px solid #ddd;
-  padding: 10px 0;
-  text-align: center;
-  cursor: pointer;
-  font-size: 14px;
-}
-td.marcado {
-  background: #4caf50;
-  color: #fff;
-  font-weight: bold;
-}
-
-/* BACKUP MENU */
-.backup-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: #4caf50;
-  border: none;
-  color: #fff;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.backup-menu {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 300px;
-  height: 100%;
-  background: #fff;
-  box-shadow: -2px 0 8px rgba(0,0,0,.3);
-  padding: 10px;
-  display: none;
-  z-index: 2000;
-}
-
-.backup-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.backup-list {
-  max-height: calc(100% - 60px);
-  overflow-y: auto;
-  margin-top: 10px;
-}
-
-.backup-item {
-  border: 1px solid #ccc;
-  padding: 6px;
-  margin-bottom: 6px;
-  font-size: 12px;
-}
-
-.backup-item button {
-  width: 100%;
-  margin-top: 4px;
-}
+body { margin:0; padding-top:240px; font-family: Arial, sans-serif; background:#f5f5f5; }
+.topo { position:fixed; top:0; left:0; right:0; background:#222; color:#fff; padding:10px; z-index:1000; }
+.titulo { text-align:center; font-size:20px; font-weight:bold; }
+.meta-box { text-align:center; margin:6px 0; }
+.meta-box input { width:80px; padding:4px; text-align:center; font-size:14px; }
+.topo-conteudo { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; font-size:14px; }
+.box { background:#333; padding:6px; border-radius:6px; text-align:center; }
+.barra { width:100%; height:14px; background:#444; border-radius:7px; overflow:hidden; margin-top:8px; }
+.barra-preenchida { height:100%; width:0%; background:#4caf50; }
+.percentual { text-align:center; font-size:13px; margin-top:4px; }
+table { width:100%; border-collapse:collapse; }
+td { border:1px solid #ddd; padding:10px 0; text-align:center; cursor:pointer; font-size:14px; }
+td.marcado { background:#4caf50; color:#fff; font-weight:bold; }
+.backup-btn { position:absolute; top:10px; right:10px; background:#4caf50; border:none; color:#fff; padding:6px 10px; border-radius:6px; cursor:pointer; }
+.backup-menu { position:fixed; top:0; right:0; width:300px; height:100%; background:#fff; box-shadow:-2px 0 8px rgba(0,0,0,.3); padding:10px; display:none; z-index:2000; }
+.backup-header { display:flex; justify-content:space-between; align-items:center; }
+.backup-list { max-height:calc(100%-60px); overflow-y:auto; margin-top:10px; }
+.backup-item { border:1px solid #ccc; padding:6px; margin-bottom:6px; font-size:12px; }
+.backup-item button { width:100%; margin-top:4px; }
 </style>
 </head>
 
@@ -185,64 +69,91 @@ td.marcado {
 </div>
 
 <script>
+// ---------------------- CONFIGURAÇÕES ----------------------
+const firebaseConfig = {
+  apiKey: "SUA_API_KEY",
+  authDomain: "SEU_PROJETO.firebaseapp.com",
+  databaseURL: "https://SEU_PROJETO-default-rtdb.firebaseio.com",
+  projectId: "SEU_PROJETO",
+  storageBucket: "SEU_PROJETO.appspot.com",
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const usuarioID = "usuario_teste"; // personalize se tiver login
+
 let META = 316;
 let metaAnterior = META;
 let selecionados = new Set();
-const tabela = document.getElementById("tabela");
 
+const tabela = document.getElementById("tabela");
 const metaInput = document.getElementById("metaInput");
 metaInput.value = META;
 
-/* FORMATA */
 const br = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 
-/* BACKUP */
-function salvarBackup() {
-  let backups = JSON.parse(localStorage.getItem("backups")||"[]");
-  backups.unshift({
-    data: new Date().toLocaleString(),
-    meta: META,
-    itens: [...selecionados]
+// ---------------------- FIREBASE ----------------------
+function salvarNoFirebase() {
+  const data = { meta: META, selecionados:[...selecionados], timestamp: Date.now() };
+  db.ref("usuarios/"+usuarioID+"/backups").once("value").then(snap=>{
+    let backups = snap.val() || [];
+    backups.unshift(data);
+    backups = backups.slice(0,15);
+    db.ref("usuarios/"+usuarioID+"/backups").set(backups);
   });
-  backups = backups.slice(0,15);
-  localStorage.setItem("backups", JSON.stringify(backups));
 }
 
-function carregarUltimoBackup() {
-  const backups = JSON.parse(localStorage.getItem("backups")||"[]");
-  if (!backups.length) return;
-  META = backups[0].meta;
-  selecionados = new Set(backups[0].itens);
-  metaInput.value = META;
+function carregarDoFirebase() {
+  db.ref("usuarios/"+usuarioID+"/backups").once("value").then(snap=>{
+    const backups = snap.val();
+    if(!backups || backups.length===0) return;
+    const ultimo = backups[0];
+    META = ultimo.meta;
+    selecionados = new Set(ultimo.selecionados);
+    metaInput.value = META;
+    montarTabela();
+  });
 }
 
+// ---------------------- BACKUP MENU ----------------------
 function renderBackups() {
   const list = document.getElementById("backupList");
   list.innerHTML = "";
-  const backups = JSON.parse(localStorage.getItem("backups")||"[]");
-  backups.forEach(b=>{
-    const soma = b.itens.reduce((a,v)=>a+v,0);
-    const div = document.createElement("div");
-    div.className="backup-item";
-    div.innerHTML = `
-      <div>${b.data}</div>
-      <div>Meta: ${b.meta}</div>
-      <div>Total: ${br(soma)}</div>
-      <button onclick='restaurar(${JSON.stringify(b)})'>Restaurar</button>
-    `;
-    list.appendChild(div);
+  db.ref("usuarios/"+usuarioID+"/backups").once("value").then(snap=>{
+    const backups = snap.val() || [];
+    backups.forEach(b=>{
+      const soma = b.selecionados.reduce((a,v)=>a+v,0);
+      const div = document.createElement("div");
+      div.className="backup-item";
+      div.innerHTML = `
+        <div>${new Date(b.timestamp).toLocaleString()}</div>
+        <div>Meta: ${b.meta}</div>
+        <div>Total: ${br(soma)}</div>
+        <button onclick='restaurarFirebase(${JSON.stringify(b)})'>Restaurar</button>
+      `;
+      list.appendChild(div);
+    });
   });
 }
 
-function restaurar(b) {
+function restaurarFirebase(b) {
   META = b.meta;
-  selecionados = new Set(b.itens);
+  selecionados = new Set(b.selecionados);
   metaInput.value = META;
   montarTabela();
+  salvarNoFirebase();
 }
 
-/* META CONFIRMAÇÃO */
-metaInput.onfocus = ()=>metaAnterior=META;
+function toggleBackup() {
+  const m = document.getElementById("backupMenu");
+  m.style.display = m.style.display==="block"?"none":"block";
+  renderBackups();
+}
+
+// ---------------------- META ----------------------
+metaInput.onfocus = ()=> metaAnterior=META;
 metaInput.onchange = ()=>{
   const nova = Number(metaInput.value);
   const removidos = [...selecionados].filter(v=>v>nova).length;
@@ -252,30 +163,30 @@ metaInput.onchange = ()=>{
   }
   META = nova;
   selecionados = new Set([...selecionados].filter(v=>v<=META));
-  salvarBackup();
+  salvarNoFirebase();
   montarTabela();
 };
 
-/* TABELA */
+// ---------------------- TABELA ----------------------
 function montarTabela() {
   tabela.innerHTML="";
   let linha;
   for(let i=1;i<=META;i++){
     if((i-1)%10===0) linha=tabela.insertRow();
-    const td=linha.insertCell();
-    td.textContent=`R$ ${i}`;
+    const td = linha.insertCell();
+    td.textContent = `R$ ${i}`;
     if(selecionados.has(i)) td.classList.add("marcado");
-    td.onclick=()=>{
+    td.onclick = ()=>{
       selecionados.has(i)?selecionados.delete(i):selecionados.add(i);
       td.classList.toggle("marcado");
-      salvarBackup();
+      salvarNoFirebase();
       atualizar();
     };
   }
   atualizar();
 }
 
-function atualizar(){
+function atualizar() {
   const soma=[...selecionados].reduce((a,b)=>a+b,0);
   document.getElementById("saldo").textContent=br(soma);
   document.getElementById("faltam").textContent=br(META*(META+1)/2 - soma);
@@ -286,15 +197,8 @@ function atualizar(){
   document.getElementById("percentual").textContent=pct.toFixed(1)+"%";
 }
 
-function toggleBackup(){
-  const m=document.getElementById("backupMenu");
-  m.style.display=m.style.display==="block"?"none":"block";
-  renderBackups();
-}
-
-/* INIT */
-carregarUltimoBackup();
-montarTabela();
+// ---------------------- INIT ----------------------
+carregarDoFirebase();
 </script>
 
 </body>
