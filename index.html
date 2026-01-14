@@ -15,9 +15,7 @@ body {
 /* TOPO */
 .topo {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  inset: 0 0 auto 0;
   background: #222;
   color: #fff;
   padding: 10px;
@@ -109,7 +107,7 @@ td.marcado {
   font-weight: bold;
 }
 
-/* MODAL BACKUPS */
+/* MODAL */
 .modal {
   display: none;
   position: fixed;
@@ -122,8 +120,30 @@ td.marcado {
   background: #fff;
   max-width: 420px;
   margin: 10% auto;
-  padding: 16px;
+  padding: 14px;
   border-radius: 12px;
+  position: relative;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.btn-fechar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: #eee;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+}
+
+.lista-backups {
+  margin-top: 30px;
+  overflow-y: auto;
 }
 
 .backup-item {
@@ -131,8 +151,9 @@ td.marcado {
   padding: 8px 0;
 }
 
-.backup-item button {
-  margin-top: 6px;
+.atual {
+  color: #4caf50;
+  font-weight: bold;
 }
 </style>
 </head>
@@ -152,20 +173,18 @@ td.marcado {
     <div class="box">Restam<br><strong id="qtdRestam">0</strong></div>
   </div>
 
-  <div class="barra">
-    <div class="barra-preenchida" id="barra"></div>
-  </div>
+  <div class="barra"><div class="barra-preenchida" id="barra"></div></div>
   <div class="percentual" id="percentual">0% concluído</div>
 </div>
 
 <table id="tabela"></table>
 
-<!-- MODAL -->
+<!-- MODAL BACKUPS -->
 <div class="modal" id="modalBackups">
   <div class="modal-box">
-    <h3>📦 Backups</h3>
-    <div id="listaBackups"></div>
-    <button onclick="fecharBackups()">Fechar</button>
+    <button class="btn-fechar" onclick="fecharBackups()">✖</button>
+    <h3 style="text-align:center">📦 Backups</h3>
+    <div class="lista-backups" id="listaBackups"></div>
   </div>
 </div>
 
@@ -189,119 +208,106 @@ const MAX_BACKUPS = 15;
 
 let selecionados = new Set();
 
-/* BACKUP */
-function salvarBackup() {
-  let backups = JSON.parse(localStorage.getItem("backups50k") || "[]");
+/* UTIL */
+function formatarBR(v){
+  return v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+}
 
-  backups.push({
-    data: new Date().toISOString(),
-    itens: [...selecionados]
-  });
+function tempoRelativo(data){
+  const diff = (Date.now() - new Date(data)) / 1000;
+  if (diff < 60) return "agora mesmo";
+  if (diff < 3600) return `há ${Math.floor(diff/60)} min`;
+  if (diff < 86400) return `há ${Math.floor(diff/3600)} h`;
+  return `há ${Math.floor(diff/86400)} dias`;
+}
 
-  if (backups.length > MAX_BACKUPS) {
-    backups = backups.slice(-MAX_BACKUPS);
-  }
-
+/* BACKUPS */
+function salvarBackup(){
+  let backups = JSON.parse(localStorage.getItem("backups50k")||"[]");
+  backups.push({ data:new Date().toISOString(), itens:[...selecionados] });
+  if (backups.length > MAX_BACKUPS) backups = backups.slice(-MAX_BACKUPS);
   localStorage.setItem("backups50k", JSON.stringify(backups));
 }
 
-/* MENU */
-window.abrirBackups = () => {
+window.abrirBackups = ()=>{
   const lista = document.getElementById("listaBackups");
-  lista.innerHTML = "";
+  lista.innerHTML="";
+  const backups = JSON.parse(localStorage.getItem("backups50k")||"[]").reverse();
 
-  const backups = JSON.parse(localStorage.getItem("backups50k") || "[]").reverse();
-
-  backups.forEach((b, i) => {
-    const soma = b.itens.reduce((a, v) => a + v, 0);
+  backups.forEach((b,i)=>{
+    const soma = b.itens.reduce((a,v)=>a+v,0);
+    const atual = JSON.stringify(b.itens) === JSON.stringify([...selecionados]);
 
     const div = document.createElement("div");
-    div.className = "backup-item";
+    div.className="backup-item";
     div.innerHTML = `
-      <strong>${new Date(b.data).toLocaleString("pt-BR")}</strong><br>
-      Depósitos: ${b.itens.length}<br>
+      <strong>${tempoRelativo(b.data)}</strong> ${atual ? '<span class="atual">(atual)</span>' : ''}<br>
       Total: ${formatarBR(soma)}<br>
-      <button onclick="restaurarBackup(${backups.length - 1 - i})">Restaurar</button>
+      <button onclick="restaurarBackup(${backups.length-1-i})">Restaurar</button>
     `;
     lista.appendChild(div);
   });
 
-  document.getElementById("modalBackups").style.display = "block";
+  modalBackups.style.display="block";
 };
 
-window.fecharBackups = () => {
-  document.getElementById("modalBackups").style.display = "none";
-};
+window.fecharBackups = ()=> modalBackups.style.display="none";
 
-window.restaurarBackup = (index) => {
+window.restaurarBackup = (i)=>{
+  if(!confirm("Deseja restaurar este backup?")) return;
   const backups = JSON.parse(localStorage.getItem("backups50k"));
-  selecionados = new Set(backups[index].itens);
+  selecionados = new Set(backups[i].itens);
   salvar();
   montarTabela();
   fecharBackups();
 };
 
 /* FIREBASE */
-async function carregar() {
-  try {
+async function carregar(){
+  try{
     const snap = await getDoc(ref);
-    if (snap.exists()) {
-      selecionados = new Set(snap.data().itens || []);
-    }
-  } catch {
-    const backups = JSON.parse(localStorage.getItem("backups50k") || "[]");
-    if (backups.length) {
-      selecionados = new Set(backups.at(-1).itens);
-    }
+    if(snap.exists()) selecionados = new Set(snap.data().itens||[]);
+  }catch{
+    const b = JSON.parse(localStorage.getItem("backups50k")||"[]");
+    if(b.length) selecionados = new Set(b.at(-1).itens);
   }
   montarTabela();
 }
 
-async function salvar() {
-  await setDoc(ref, { itens: [...selecionados] });
+async function salvar(){
+  await setDoc(ref,{itens:[...selecionados]});
   salvarBackup();
 }
 
-/* UTIL */
-function formatarBR(v) {
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
 /* TABELA */
-function montarTabela() {
-  const tabela = document.getElementById("tabela");
-  tabela.innerHTML = "";
+function montarTabela(){
+  tabela.innerHTML="";
   let linha;
-
-  for (let i = 1; i <= TOTAL; i++) {
-    if ((i - 1) % 10 === 0) linha = tabela.insertRow();
-    const td = linha.insertCell();
-    td.textContent = `R$ ${i}`;
-
-    if (selecionados.has(i)) td.classList.add("marcado");
-
-    td.onclick = () => {
-      selecionados.has(i) ? selecionados.delete(i) : selecionados.add(i);
+  for(let i=1;i<=TOTAL;i++){
+    if((i-1)%10===0) linha=tabela.insertRow();
+    const td=linha.insertCell();
+    td.textContent=`R$ ${i}`;
+    if(selecionados.has(i)) td.classList.add("marcado");
+    td.onclick=()=>{
+      selecionados.has(i)?selecionados.delete(i):selecionados.add(i);
       td.classList.toggle("marcado");
-      atualizar();
-      salvar();
+      atualizar(); salvar();
     };
   }
-
   atualizar();
 }
 
-function atualizar() {
-  const soma = [...selecionados].reduce((a,b)=>a+b,0);
-  const qtd = selecionados.size;
-  const pct = (qtd / TOTAL) * 100;
+function atualizar(){
+  const soma=[...selecionados].reduce((a,b)=>a+b,0);
+  const qtd=selecionados.size;
+  const pct=(qtd/TOTAL)*100;
 
-  saldo.textContent = formatarBR(soma);
-  faltam.textContent = formatarBR(SOMA_TOTAL - soma);
-  qtdMarcados.textContent = qtd;
-  qtdRestam.textContent = TOTAL - qtd;
-  barra.style.width = pct + "%";
-  percentual.textContent = pct.toFixed(1) + "% concluído";
+  saldo.textContent=formatarBR(soma);
+  faltam.textContent=formatarBR(SOMA_TOTAL-soma);
+  qtdMarcados.textContent=qtd;
+  qtdRestam.textContent=TOTAL-qtd;
+  barra.style.width=pct+"%";
+  percentual.textContent=pct.toFixed(1)+"% concluído";
 }
 
 carregar();
