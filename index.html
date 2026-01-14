@@ -2,25 +2,149 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Tabela</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabela com Salvamento Firebase</title>
+
 <style>
-  td { border: 1px solid #ccc; padding: 6px; cursor: pointer; }
-  .m { background: #4caf50; color: white; }
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding-top: 70px;
+  }
+
+  .topo {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-around;
+    background: #222;
+    color: white;
+    padding: 10px;
+    z-index: 10;
+  }
+
+  .box {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+  }
+
+  .marcados { background: #4caf50; }
+  .faltam { background: #f44336; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  td.m {
+    background: #4caf50;
+    color: white;
+  }
 </style>
 </head>
 
 <body>
 
-<div>
-  Marcados: <span id="m">0</span> |
-  Faltam: <span id="f">0</span>
+<div class="topo">
+  <div class="box marcados">Marcados: R$ <span id="m">0</span></div>
+  <div class="box faltam">Faltam: R$ <span id="f">0</span></div>
 </div>
 
 <table id="t"></table>
 
-<script>
-const tabela = document.getElementById("t");
-console.log("Tabela:", tabela); // NÃO pode ser null
+<!-- FIREBASE -->
+<script type="module">
+  // 🔥 IMPORTS FIREBASE (CDN OFICIAL)
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // 🔑 CONFIGURAÇÃO (SUA)
+  const firebaseConfig = {
+    apiKey: "SUA_API_KEY",
+    authDomain: "SEU_PROJETO.firebaseapp.com",
+    projectId: "SEU_PROJETO",
+  };
+
+  // 🔥 INICIALIZA
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const tabela = document.getElementById("t");
+  const marcadosSpan = document.getElementById("m");
+  const faltamSpan = document.getElementById("f");
+
+  const TOTAL = 316;
+  const SOMA_TOTAL = TOTAL * (TOTAL + 1) / 2;
+
+  let marcados = new Set();
+
+  // 📥 CARREGAR DO FIREBASE
+  async function carregar() {
+    const ref = doc(db, "tabela", "estado");
+    const snap = await getDoc(ref);
+
+    if (snap.exists()) {
+      marcados = new Set(snap.data().marcados);
+    }
+
+    montarTabela();
+  }
+
+  // 💾 SALVAR NO FIREBASE
+  async function salvar() {
+    const ref = doc(db, "tabela", "estado");
+    await setDoc(ref, {
+      marcados: Array.from(marcados)
+    });
+  }
+
+  function montarTabela() {
+    tabela.innerHTML = "";
+    let linha;
+
+    for (let i = 1; i <= TOTAL; i++) {
+      if ((i - 1) % 10 === 0) linha = tabela.insertRow();
+
+      const td = linha.insertCell();
+      td.textContent = i;
+
+      if (marcados.has(i)) td.classList.add("m");
+
+      td.onclick = async () => {
+        if (marcados.has(i)) {
+          marcados.delete(i);
+          td.classList.remove("m");
+        } else {
+          marcados.add(i);
+          td.classList.add("m");
+        }
+
+        atualizar();
+        salvar(); // salva automaticamente
+      };
+    }
+
+    atualizar();
+  }
+
+  function atualizar() {
+    let somaMarcados = [...marcados].reduce((a, b) => a + b, 0);
+    marcadosSpan.textContent = somaMarcados;
+    faltamSpan.textContent = SOMA_TOTAL - somaMarcados;
+  }
+
+  carregar();
 </script>
 
 </body>
