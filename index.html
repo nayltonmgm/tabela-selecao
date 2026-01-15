@@ -3,161 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Projeto 50K - Realtime Backup</title>
+<title>Projeto 50K</title>
 
 <style>
-body {
-  margin: 0;
-  padding-top: 240px;
-  font-family: Arial, sans-serif;
-  background: #f5f5f5;
-}
-
-/* TOPO */
-.topo {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: #222;
-  color: #fff;
-  padding: 10px;
-  z-index: 1000;
-}
-
-.titulo {
-  text-align: center;
-  font-size: 20px;
-  font-weight: bold;
-}
-
-/* META */
-.meta-box {
-  text-align: center;
-  margin: 6px 0;
-}
-.meta-box input {
-  width: 80px;
-  padding: 4px;
-  text-align: center;
-  font-size: 14px;
-}
-
-/* GRID INFO */
-.topo-conteudo {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  font-size: 14px;
-}
-
-.box {
-  background: #333;
-  padding: 6px;
-  border-radius: 6px;
-  text-align: center;
-}
-
-/* PROGRESSO */
-.barra {
-  width: 100%;
-  height: 14px;
-  background: #444;
-  border-radius: 7px;
-  overflow: hidden;
-  margin-top: 8px;
-}
-.barra-preenchida {
-  height: 100%;
-  width: 0%;
-  background: #4caf50;
-}
-.percentual {
-  text-align: center;
-  font-size: 13px;
-  margin-top: 4px;
-}
-
-/* TABELA */
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-td {
-  border: 1px solid #ddd;
-  padding: 10px 0;
-  text-align: center;
-  cursor: pointer;
-  font-size: 14px;
-}
-td.marcado {
-  background: #4caf50;
-  color: #fff;
-  font-weight: bold;
-}
-
-/* BACKUP MENU */
-.backup-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: #4caf50;
-  border: none;
-  color: #fff;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.backup-menu {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 300px;
-  height: 100%;
-  background: #fff;
-  box-shadow: -2px 0 8px rgba(0,0,0,.3);
-  padding: 10px;
-  display: none;
-  z-index: 2000;
-}
-
-.backup-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.backup-list {
-  max-height: calc(100% - 60px);
-  overflow-y: auto;
-  margin-top: 10px;
-}
-
-.backup-item {
-  border: 1px solid #ccc;
-  padding: 6px;
-  margin-bottom: 6px;
-  font-size: 12px;
-}
-
-.backup-item button {
-  width: 100%;
-  margin-top: 4px;
-}
+body{margin:0;padding-top:240px;font-family:Arial;background:#f5f5f5}
+.topo{position:fixed;top:0;left:0;right:0;background:#222;color:#fff;padding:10px;z-index:1000}
+.titulo{text-align:center;font-size:20px;font-weight:bold}
+.meta-box{text-align:center;margin:6px 0}
+.meta-box input{width:80px;padding:4px;text-align:center}
+.topo-conteudo{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:14px}
+.box{background:#333;padding:6px;border-radius:6px;text-align:center}
+.barra{width:100%;height:14px;background:#444;border-radius:7px;overflow:hidden;margin-top:8px}
+.barra-preenchida{height:100%;width:0;background:#4caf50}
+.percentual{text-align:center;font-size:13px;margin-top:4px}
+table{width:100%;border-collapse:collapse}
+td{border:1px solid #ddd;padding:10px 0;text-align:center;cursor:pointer}
+td.marcado{background:#4caf50;color:#fff;font-weight:bold}
 </style>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
 </head>
+
 <body>
 
 <div class="topo">
   <div class="titulo">Projeto 50K</div>
-
-  <button class="backup-btn" onclick="toggleBackup()">💾</button>
 
   <div class="meta-box">
     Meta:
@@ -171,75 +39,65 @@ td.marcado {
     <div class="box">Restam<br><strong id="qtdRestam">0</strong></div>
   </div>
 
-  <div class="barra">
-    <div class="barra-preenchida" id="barra"></div>
-  </div>
+  <div class="barra"><div class="barra-preenchida" id="barra"></div></div>
   <div class="percentual" id="percentual">0%</div>
 </div>
 
 <table id="tabela"></table>
 
-<!-- MENU BACKUP -->
-<div class="backup-menu" id="backupMenu">
-  <div class="backup-header">
-    <strong>Backups</strong>
-    <button onclick="toggleBackup()">✖</button>
-  </div>
-  <div class="backup-list" id="backupList"></div>
-</div>
+<!-- ================= FIREBASE + APP ================= -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, push } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
 
-<script>
-// ================= CONFIG FIREBASE =================
+/* CONFIG DO SEU FIREBASE */
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_PROJETO.firebaseapp.com",
-  databaseURL: "https://SEU_PROJETO.firebaseio.com",
-  projectId: "SEU_PROJETO",
-  storageBucket: "SEU_PROJETO.appspot.com",
-  messagingSenderId: "SEU_SENDER_ID",
-  appId: "SEU_APP_ID"
+  apiKey: "AIzaSyBvpZWh-4VCHvEpo3RX-z774U_SYEO7auE",
+  authDomain: "cofre-7651a.firebaseapp.com",
+  databaseURL: "https://cofre-7651a-default-rtdb.firebaseio.com",
+  projectId: "cofre-7651a",
+  storageBucket: "cofre-7651a.firebasestorage.app",
+  messagingSenderId: "836207545752",
+  appId: "1:836207545752:web:03e1602fbb038a0c2e6fed"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
 
-// Nó central para estado em tempo real
-const estadoRef = db.ref('estadoAtual');
-// Nó separado para histórico de backups
-const backupsRef = db.ref('backups');
+/* INIT */
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-// ================= VARIÁVEIS =================
+/* REFERÊNCIAS */
+const estadoRef = ref(db, "estadoAtual");
+const backupsRef = ref(db, "backups");
+
+/* VARIÁVEIS */
 let META = 316;
-let metaAnterior = META;
 let selecionados = new Set();
 const tabela = document.getElementById("tabela");
 const metaInput = document.getElementById("metaInput");
 metaInput.value = META;
+
 const br = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 
-// ================= FUNÇÕES =================
-
-// Salva estado atual na nuvem (realtime)
-function salvarEstado() {
-  const estado = {
+/* SALVAR ESTADO (REALTIME) */
+function salvarEstado(){
+  set(estadoRef,{
     meta: META,
     itens: [...selecionados],
-    ultimaAtualizacao: new Date().toISOString()
-  };
-  estadoRef.set(estado); // sobrescreve estado atual
+    atualizadoEm: Date.now()
+  });
 }
 
-// Salva backup histórico (versão com data)
-function salvarBackupHistorico() {
-  const backup = {
-    data: new Date().toLocaleString(),
+/* SALVAR BACKUP */
+function salvarBackup(){
+  push(backupsRef,{
     meta: META,
-    itens: [...selecionados]
-  };
-  backupsRef.push(backup);
+    itens: [...selecionados],
+    data: new Date().toLocaleString()
+  });
 }
 
-// Monta tabela
-function montarTabela() {
+/* TABELA */
+function montarTabela(){
   tabela.innerHTML="";
   let linha;
   for(let i=1;i<=META;i++){
@@ -250,15 +108,15 @@ function montarTabela() {
     td.onclick=()=>{
       selecionados.has(i)?selecionados.delete(i):selecionados.add(i);
       td.classList.toggle("marcado");
-      salvarEstado(); // atualiza em tempo real
-      salvarBackupHistorico(); // histórico opcional
+      salvarEstado();
+      salvarBackup();
       atualizar();
     };
   }
   atualizar();
 }
 
-// Atualiza valores da tela
+/* UI */
 function atualizar(){
   const soma=[...selecionados].reduce((a,b)=>a+b,0);
   document.getElementById("saldo").textContent=br(soma);
@@ -270,80 +128,26 @@ function atualizar(){
   document.getElementById("percentual").textContent=pct.toFixed(1)+"%";
 }
 
-// Meta editável com confirmação
-metaInput.onfocus = ()=>metaAnterior=META;
-metaInput.onchange = ()=>{
-  const nova = Number(metaInput.value);
-  const removidos = [...selecionados].filter(v=>v>nova).length;
-  if(!confirm(`Alterar meta ${metaAnterior} → ${nova}?\nRemover ${removidos} depósitos?`)){
-    metaInput.value = metaAnterior;
-    return;
-  }
-  META = nova;
-  selecionados = new Set([...selecionados].filter(v=>v<=META));
+/* ESCUTA REALTIME (SINCRONIZAÇÃO) */
+onValue(estadoRef,snap=>{
+  const e=snap.val();
+  if(!e) return;
+  META=e.meta;
+  metaInput.value=META;
+  selecionados=new Set(e.itens||[]);
+  montarTabela();
+});
+
+/* META */
+metaInput.onchange=()=>{
+  META=Number(metaInput.value);
+  selecionados=new Set([...selecionados].filter(v=>v<=META));
   salvarEstado();
-  salvarBackupHistorico();
+  salvarBackup();
   montarTabela();
 };
 
-// Toggle menu backup
-function toggleBackup(){
-  const m=document.getElementById("backupMenu");
-  m.style.display=m.style.display==="block"?"none":"block";
-}
-
-// Renderiza backups históricos
-function renderBackupsHistorico(backups) {
-  const list = document.getElementById("backupList");
-  list.innerHTML = "";
-  backups.slice(-15).reverse().forEach(b=>{
-    const soma = b.itens.reduce((a,v)=>a+v,0);
-    const div = document.createElement("div");
-    div.className="backup-item";
-    div.innerHTML = `
-      <div>${b.data}</div>
-      <div>Meta: ${b.meta}</div>
-      <div>Total: ${br(soma)}</div>
-      <button onclick='restaurar(${JSON.stringify(b)})'>Restaurar</button>
-    `;
-    list.appendChild(div);
-  });
-}
-
-// Restaurar estado
-function restaurar(b){
-  META = b.meta;
-  selecionados = new Set(b.itens);
-  metaInput.value = META;
-  montarTabela();
-  salvarEstado();
-}
-
-// ================= INICIALIZAÇÃO =================
-
-// Escuta estado em tempo real
-estadoRef.on('value', snapshot => {
-  const estado = snapshot.val();
-  if(!estado) return;
-
-  META = estado.meta;
-  metaInput.value = META;
-
-  const novosSelecionados = new Set(estado.itens);
-  if(JSON.stringify([...novosSelecionados]) !== JSON.stringify([...selecionados])){
-    selecionados = novosSelecionados;
-    montarTabela();
-  }
-});
-
-// Escuta histórico de backups
-backupsRef.on('value', snapshot => {
-  const backupsObj = snapshot.val() || {};
-  const backups = Object.values(backupsObj).sort((a,b)=>new Date(b.data)-new Date(a.data));
-  renderBackupsHistorico(backups);
-});
-
-// Inicializa tabela
+/* INIT */
 montarTabela();
 </script>
 
