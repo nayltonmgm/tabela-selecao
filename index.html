@@ -1,147 +1,154 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Projeto Cofinho</title>
 
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-  }
-
-  h1 {
-    margin-bottom: 5px;
-  }
-
-  .saldo {
-    font-size: 28px;
-    font-weight: bold;
-    color: #2ecc71; /* mesma cor dos marcados */
-    margin-bottom: 15px;
-  }
-
-  button {
-    padding: 6px 10px;
-    cursor: pointer;
-  }
-
-  .container {
-    display: flex;
-    gap: 20px;
-  }
-
-  .backups {
-    width: 260px;
-    border: 1px solid #ccc;
-    padding: 10px;
-  }
-
-  .backups h3 {
-    margin-top: 0;
-  }
-
-  .backup-item {
-    font-size: 14px;
-    border-bottom: 1px solid #eee;
-    padding: 6px 0;
-  }
-
-  input {
-    padding: 6px;
-    width: 120px;
-  }
+body{margin:0;padding-top:240px;font-family:Arial;background:#f5f5f5}
+.topo{position:fixed;top:0;left:0;right:0;background:#222;color:#fff;padding:10px;z-index:1000}
+.titulo{text-align:center;font-size:20px;font-weight:bold}
+.meta-box{text-align:center;margin:6px 0}
+.meta-box input{width:80px;padding:4px;text-align:center}
+.topo-conteudo{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:14px}
+.box{background:#333;padding:6px;border-radius:6px;text-align:center}
+.barra{width:100%;height:14px;background:#444;border-radius:7px;overflow:hidden;margin-top:8px}
+.barra-preenchida{height:100%;width:0;background:#4caf50}
+.percentual{text-align:center;font-size:13px;margin-top:4px}
+table{width:100%;border-collapse:collapse}
+td{border:1px solid #ddd;padding:10px 0;text-align:center;cursor:pointer}
+td.marcado{background:#4caf50;color:#fff;font-weight:bold}
 </style>
 </head>
 
 <body>
 
-<h1>Projeto Cofinho</h1>
-<div class="saldo" id="saldo">Saldo: R$ 0</div>
+<div class="topo">
+  <div class="titulo">Projeto Cofinho</div>
 
-<input id="valor" type="number" placeholder="Valor">
-<button onclick="salvar()">Adicionar</button>
-
-<div class="container">
-  <div class="backups">
-    <h3>🕒 Últimas alterações</h3>
-    <div id="listaBackups"></div>
+  <div class="meta-box">
+    Meta:
+    <input type="number" id="metaInput">
   </div>
+
+  <div class="topo-conteudo">
+    <div class="box">Saldo<br><strong id="saldo">R$ 0,00</strong></div>
+    <div class="box">Faltam<br><strong id="faltam">R$ 0,00</strong></div>
+    <div class="box">Depósitos<br><strong id="qtdMarcados">0</strong></div>
+    <div class="box">Restam<br><strong id="qtdRestam">0</strong></div>
+  </div>
+
+  <div class="barra"><div class="barra-preenchida" id="barra"></div></div>
+  <div class="percentual" id="percentual">0%</div>
 </div>
 
+<table id="tabela"></table>
+
+<!-- ================= FIREBASE + APP ================= -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-  import {
-    getDatabase,
-    ref,
-    set,
-    push,
-    onValue,
-    query,
-    limitToLast
-  } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, push } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBvpZWh-4VCHvEpo3RX-z774U_SYEO7auE",
-    authDomain: "cofre-7651a.firebaseapp.com",
-    databaseURL: "https://cofre-7651a-default-rtdb.firebaseio.com",
-    projectId: "cofre-7651a",
-    storageBucket: "cofre-7651a.firebasestorage.app",
-    messagingSenderId: "836207545752",
-    appId: "1:836207545752:web:03e1602fbb038a0c2e6fed"
-  };
+/* CONFIG DO SEU FIREBASE */
+const firebaseConfig = {
+  apiKey: "AIzaSyBvpZWh-4VCHvEpo3RX-z774U_SYEO7auE",
+  authDomain: "cofre-7651a.firebaseapp.com",
+  databaseURL: "https://cofre-7651a-default-rtdb.firebaseio.com",
+  projectId: "cofre-7651a",
+  storageBucket: "cofre-7651a.firebasestorage.app",
+  messagingSenderId: "836207545752",
+  appId: "1:836207545752:web:03e1602fbb038a0c2e6fed"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+/* INIT */
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-  let saldoAtual = 0;
+/* REFERÊNCIAS */
+const estadoRef = ref(db, "estadoAtual");
+const backupsRef = ref(db, "backups");
 
-  // Atualiza saldo em tempo real
-  onValue(ref(db, "saldo"), snap => {
-    saldoAtual = snap.val() || 0;
-    document.getElementById("saldo").innerText =
-      "Saldo: R$ " + saldoAtual.toFixed(2);
+/* VARIÁVEIS */
+let META = 316;
+let selecionados = new Set();
+const tabela = document.getElementById("tabela");
+const metaInput = document.getElementById("metaInput");
+metaInput.value = META;
+
+const br = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+
+/* SALVAR ESTADO (REALTIME) */
+function salvarEstado(){
+  set(estadoRef,{
+    meta: META,
+    itens: [...selecionados],
+    atualizadoEm: Date.now()
   });
+}
 
-  // Lista apenas os 5 últimos backups
-  const backupsQuery = query(ref(db, "backups"), limitToLast(5));
-
-  onValue(backupsQuery, snap => {
-    const lista = document.getElementById("listaBackups");
-    lista.innerHTML = "";
-
-    if (!snap.exists()) return;
-
-    const dados = Object.values(snap.val()).reverse();
-
-    dados.forEach(b => {
-      const div = document.createElement("div");
-      div.className = "backup-item";
-      div.innerHTML = `
-        <strong>R$ ${b.saldo.toFixed(2)}</strong><br>
-        <small>${b.data}</small>
-      `;
-      lista.appendChild(div);
-    });
+/* SALVAR BACKUP */
+function salvarBackup(){
+  push(backupsRef,{
+    meta: META,
+    itens: [...selecionados],
+    data: new Date().toLocaleString()
   });
+}
 
-  // Salvar valor
-  window.salvar = function () {
-    const valor = Number(document.getElementById("valor").value);
-    if (!valor) return;
+/* TABELA */
+function montarTabela(){
+  tabela.innerHTML="";
+  let linha;
+  for(let i=1;i<=META;i++){
+    if((i-1)%10===0) linha=tabela.insertRow();
+    const td=linha.insertCell();
+    td.textContent=`R$ ${i}`;
+    if(selecionados.has(i)) td.classList.add("marcado");
+    td.onclick=()=>{
+      selecionados.has(i)?selecionados.delete(i):selecionados.add(i);
+      td.classList.toggle("marcado");
+      salvarEstado();
+      salvarBackup();
+      atualizar();
+    };
+  }
+  atualizar();
+}
 
-    const novoSaldo = saldoAtual + valor;
+/* UI */
+function atualizar(){
+  const soma=[...selecionados].reduce((a,b)=>a+b,0);
+  document.getElementById("saldo").textContent=br(soma);
+  document.getElementById("faltam").textContent=br(META*(META+1)/2 - soma);
+  document.getElementById("qtdMarcados").textContent=selecionados.size;
+  document.getElementById("qtdRestam").textContent=META-selecionados.size;
+  const pct=(selecionados.size/META)*100;
+  document.getElementById("barra").style.width=pct+"%";
+  document.getElementById("percentual").textContent=pct.toFixed(1)+"%";
+}
 
-    set(ref(db, "saldo"), novoSaldo);
+/* ESCUTA REALTIME (SINCRONIZAÇÃO) */
+onValue(estadoRef,snap=>{
+  const e=snap.val();
+  if(!e) return;
+  META=e.meta;
+  metaInput.value=META;
+  selecionados=new Set(e.itens||[]);
+  montarTabela();
+});
 
-    push(ref(db, "backups"), {
-      saldo: novoSaldo,
-      valorAdicionado: valor,
-      data: new Date().toLocaleString("pt-BR")
-    });
+/* META */
+metaInput.onchange=()=>{
+  META=Number(metaInput.value);
+  selecionados=new Set([...selecionados].filter(v=>v<=META));
+  salvarEstado();
+  salvarBackup();
+  montarTabela();
+};
 
-    document.getElementById("valor").value = "";
-  };
+/* INIT */
+montarTabela();
 </script>
 
 </body>
